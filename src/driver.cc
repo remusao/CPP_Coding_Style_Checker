@@ -5,7 +5,8 @@
 extern FILE* yyin;
 
 Driver::Driver ()
-  : source_ (0),
+  : yylloc (new YYLTYPE ()),
+    source_ (0),
     par_count_ (0),
     scope_count_ (0),
     colon_on_line_ (false),
@@ -52,7 +53,7 @@ Driver::parse_file (std::string& file)
   print_header_ (file);
   source_ = &file;
   yyin = fopen(file.c_str (), "r");
-  yyparse (*this);
+  while (yylex (*this));
   reset_ ();
 
   return 0;
@@ -63,7 +64,7 @@ Driver::parse_stdin ()
 {
   yyin = stdin;
   source_ = new std::string ("Stdin");
-  yyparse (*this);
+  while (yylex (*this));
   delete source_;
   reset_ ();
 

@@ -3,10 +3,42 @@
 # define DRIVER_HH_
 
 # include <stdio.h>
-# include "parser.hh"
+# include <iostream>
+# include <string>
+
+typedef struct
+{
+  int first_line;
+  int first_column;
+  int last_line;
+  int last_column;
+} YYLTYPE;
+
+typedef enum
+{
+  OTHER,
+  PRIVATE,
+  PROTECTED,
+  PUBLIC
+} YYSTYPE;
 
 
-int yyparse (Driver& driver);
+/* Fwd declaration of the yylex prototype */
+//# define YY_DECL              \
+//  int                         \
+//  yylex(YYSTYPE* yylval,      \
+//        YYLTYPE* yylloc,      \
+//        Driver&  driver)
+# define YY_DECL          \
+  int                     \
+  yylex (Driver& driver)
+
+class Driver;
+
+/* Declare the prototype of yylex */
+YY_DECL;
+
+
 
 class Driver
 {
@@ -58,6 +90,10 @@ class Driver
 
     bool something_get () { return something_on_line_; }
     void something_set (bool s) { something_on_line_ = s; }
+
+  public:
+
+    YYLTYPE*    yylloc;
 
   private:
 

@@ -1,17 +1,26 @@
 %top{
 
 /* Includes */
-#include "parser.hh"  
-#include <iostream>
+#include "driver.hh"
+
+/* Fwd declaration of the << YYLTYPE op. To use it in the lexer to */
+std::ostream& operator<< (std::ostream& o, YYLTYPE& loc);
+
+/* Fwd declaration of the norme_error function */
+void norme_error (std::string message, char* token, Driver& driver);
+
+/* Fwd declaration of the norme_warning function */
+void norme_warning (std::string message, char* token, Driver& driver);
+
 
 /* Defines */
-#define yyterminate() return TOK_EOF;
+#define yyterminate() return 0;
 
 /* Location maccros */
 #define SHADOW_STEP()                               \
   do {                                              \
-    yylloc->first_line = yylloc->last_line;	    \
-    yylloc->first_column = yylloc->last_column;	    \
+    driver.yylloc->first_line = driver.yylloc->last_line;	    \
+    driver.yylloc->first_column = driver.yylloc->last_column;	    \
   } while (0)
 
 #define STEP()                                              \
@@ -23,24 +32,24 @@
         ERROR ("Braces must be on their own lines", 0);     \
       driver.something_set (true);                          \
     }                                                       \
-    yylloc->first_line = yylloc->last_line;	            \
-    yylloc->first_column = yylloc->last_column;	            \
+    driver.yylloc->first_line = driver.yylloc->last_line;	            \
+    driver.yylloc->first_column = driver.yylloc->last_column;	            \
   } while (0)
 
 
 #define COL(Col)				    \
-  yylloc->last_column += (Col)
+  driver.yylloc->last_column += (Col)
 
 
 #define LINE(Line)				                \
   do{						                \
-    if (/*yylloc->first_column > 81 ||*/ yylloc->last_column > 81)  \
+    if (/*yylloc->first_column > 81 ||*/ driver.yylloc->last_column > 81)  \
       ERROR ("Line exceed 80 characters", 0);                   \
     driver.brace_set (false);                                   \
     driver.something_set (false);                               \
     driver.colon_set (false);                                   \
-    yylloc->last_column = 1;		  	                \
-    yylloc->last_line += (Line);		                \
+    driver.yylloc->last_column = 1;		  	                \
+    driver.yylloc->last_line += (Line);		                \
  } while (0)
 
 
@@ -52,20 +61,20 @@
 #define ERROR(message, tok)                         \
   do {                                              \
     if (tok) {                                      \
-      norme_error (yylloc, message, yytext, driver);\
+      norme_error (message, yytext, driver);\
     }                                               \
     else {                                          \
-      norme_error (yylloc, message, 0, driver);     \
+      norme_error (message, 0, driver);     \
     }                                               \
   } while (0)
 
 #define WARNING(message, tok)                       \
   do {                                              \
     if (tok) {                                      \
-      norme_warning (yylloc, message, yytext, driver);\
+      norme_warning (message, yytext, driver);\
     }                                               \
     else {                                          \
-      norme_warning (yylloc, message, 0, driver);     \
+      norme_warning (message, 0, driver);     \
     }                                               \
   } while (0)
 }
@@ -436,26 +445,26 @@ enum_use    [a-zA-Z:]+[A-Z_]+
                   }
   {blank}+        STEP ();
   "#"             {
-                    if (yylloc->first_column > 1)
+                    if (driver.yylloc->first_column > 1)
                       ERROR ("Preprocessor directive mark must appear on the first column", 1);
                     STEP ();
                   }
   {macro_forbid}  {
-                    if (driver.preproc_in_get () && yylloc->first_column != driver.preproc_get () + 2)
+                    if (driver.preproc_in_get () && driver.yylloc->first_column != driver.preproc_get () + 2)
                       ERROR ("Preproc instructions must be indented correctly", 0);
                     driver.preproc_in_set (false);
                     STEP ();
                     ERROR ("You must not break the control flow inside a macro", 1);
                   }
   {preproc_if}    {
-                    if (driver.preproc_in_get () && yylloc->first_column != driver.preproc_get () + 2)
+                    if (driver.preproc_in_get () && driver.yylloc->first_column != driver.preproc_get () + 2)
                       ERROR ("Preproc instructions must be indented correctly", 0);
                     driver.preproc_inc ();
                     driver.preproc_in_set (false);
                     STEP ();
                   }
   "endif"         {
-                    if (driver.preproc_in_get () && yylloc->first_column != driver.preproc_get () + 1)
+                    if (driver.preproc_in_get () && driver.yylloc->first_column != driver.preproc_get () + 1)
                       ERROR ("Preproc instructions must be indented correctly", 0);
                     driver.preproc_dec ();
                     if (!driver.preproc_get ())
@@ -468,13 +477,13 @@ enum_use    [a-zA-Z:]+[A-Z_]+
                     STEP ();
                   }
   {id}            {
-                    if (driver.preproc_in_get () && yylloc->first_column != driver.preproc_get () + 2)
+                    if (driver.preproc_in_get () && driver.yylloc->first_column != driver.preproc_get () + 2)
                       ERROR ("Preproc instructions must be indented correctly", 0);
                     driver.preproc_in_set (false);
                     STEP ();
                   }
   .               {
-                    if (driver.preproc_in_get () && yylloc->first_column != driver.preproc_get () + 2)
+                    if (driver.preproc_in_get () && driver.yylloc->first_column != driver.preproc_get () + 2)
                       ERROR ("Preproc instructions must be indented correctly", 0);
                     driver.preproc_in_set (false);
                   }
@@ -599,7 +608,7 @@ enum_use    [a-zA-Z:]+[A-Z_]+
 
 
 "#"{preproc_if} {
-                  if (yylloc->first_column > 1)
+                  if (driver.yylloc->first_column > 1)
                     ERROR ("Preprocessor directive mark must appear on the first column", 1);
                   driver.preproc_inc ();
                   driver.preproc_in_set (false);
@@ -609,7 +618,7 @@ enum_use    [a-zA-Z:]+[A-Z_]+
 
 
 "#"           {
-                if (yylloc->first_column > 1)
+                if (driver.yylloc->first_column > 1)
                   ERROR ("Preprocessor directive mark must appear on the first column", 1);
                 STEP ();
               }
@@ -676,7 +685,7 @@ enum_use    [a-zA-Z:]+[A-Z_]+
                 }
 
 {op}              STEP ();
-{bin_op}          yylval->s = yytext;
+{bin_op}          STEP ();
 {low_case_id}     STEP ();
 {upper_case_id}   STEP ();
 {mix_case_id}     STEP ();
@@ -705,3 +714,36 @@ enum_use    [a-zA-Z:]+[A-Z_]+
 .             {ERROR ("Unexpected token", 1); STEP ();}
 
 %%
+
+std::ostream&
+operator<< (std::ostream& o, YYLTYPE& loc)
+{
+  o << "\033[35m";
+  o << loc.first_line << ":" << loc.first_column;
+  o << "\033[37m";
+  o.flush ();
+
+  return o;
+}
+
+void
+norme_error (std::string message, char* token, Driver& driver)
+{
+  if (driver.source_get ())
+    std::cerr << "\033[34m" << *driver.source_get () << "\033[37m : ";
+  std::cerr << *driver.yylloc << "  " << "\033[31mError \033[37m" << message;
+  if (token)
+    std::cerr << " : " << "\033[4;31m" << std::string (token) << "\033[0;37m";
+  std::cerr << std::endl;
+}
+
+void
+norme_warning (std::string message, char* token, Driver& driver)
+{
+  if (driver.source_get ())
+    std::cerr << "\033[34m" << *driver.source_get () << "\033[37m : ";
+  std::cerr << *driver.yylloc << "  " << "\033[33mWarning \033[37m" << message;
+  if (token)
+    std::cerr << " : " << "\033[4;31m" << std::string (token) << "\033[0;37m";
+  std::cerr << std::endl;
+}
