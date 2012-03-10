@@ -6,6 +6,7 @@
 # include <iostream>
 # include <string>
 
+/* Location type */
 typedef struct
 {
   int first_line;
@@ -14,6 +15,7 @@ typedef struct
   int last_column;
 } YYLTYPE;
 
+/* Token type */
 typedef enum
 {
   OTHER,
@@ -22,17 +24,11 @@ typedef enum
   PUBLIC
 } YYSTYPE;
 
+/* Prototype of the yylex function*/
+# define YY_DECL              \
+  int yylex (Driver& driver)
 
-/* Fwd declaration of the yylex prototype */
-//# define YY_DECL              \
-//  int                         \
-//  yylex(YYSTYPE* yylval,      \
-//        YYLTYPE* yylloc,      \
-//        Driver&  driver)
-# define YY_DECL          \
-  int                     \
-  yylex (Driver& driver)
-
+/* Forward declaration of the class for yylex prototype */
 class Driver;
 
 /* Declare the prototype of yylex */
