@@ -87,6 +87,9 @@ class Driver
     bool something_get () { return something_on_line_; }
     void something_set (bool s) { something_on_line_ = s; }
 
+    bool sharp_get () { return sharp_on_line_; }
+    void sharp_set (bool s) { sharp_on_line_ = s; }
+
   public:
 
     YYLTYPE*    yylloc;
@@ -108,6 +111,7 @@ class Driver
     unsigned current_state_;
 
     bool  preproc_in_;
+    bool  sharp_on_line_;
     int   preproc_depth_;
 
     bool brace_on_line_;

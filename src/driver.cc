@@ -16,6 +16,7 @@ Driver::Driver ()
     is_in_private_ (false),
     current_state_ (OTHER),
     preproc_in_ (false),
+    sharp_on_line_ (false),
     preproc_depth_ (0),
     brace_on_line_ (false),
     something_on_line_ (false)

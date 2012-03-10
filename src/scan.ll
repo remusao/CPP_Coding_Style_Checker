@@ -12,70 +12,85 @@ void norme_error (std::string message, char* token, Driver& driver);
 /* Fwd declaration of the norme_warning function */
 void norme_warning (std::string message, char* token, Driver& driver);
 
-
-/* Defines */
+/* What the lexer should return when EOF is encountered */
 #define yyterminate() return 0;
 
 /* Location maccros */
-#define SHADOW_STEP()                               \
-  do {                                              \
+
+/* One step forward but don't check braces rule */
+#define SHADOW_STEP()                                               \
+  do {                                                              \
     driver.yylloc->first_line = driver.yylloc->last_line;	    \
     driver.yylloc->first_column = driver.yylloc->last_column;	    \
   } while (0)
 
-#define STEP()                                              \
-  do {                                                      \
-    if (yytext && !(yytext[0] == ' '                        \
-        || yytext[0] == '\t' || yytext[0] == '\n'))         \
-    {                                                       \
-      if (driver.something_get () && driver.brace_get ())   \
-        ERROR ("Braces must be on their own lines", 0);     \
-      driver.something_set (true);                          \
-    }                                                       \
-    driver.yylloc->first_line = driver.yylloc->last_line;	            \
-    driver.yylloc->first_column = driver.yylloc->last_column;	            \
+/* One step forward */
+#define STEP()                                                      \
+  do {                                                              \
+    if (yytext && !(yytext[0] == ' '                                \
+        || yytext[0] == '\t' || yytext[0] == '\n'))                 \
+    {                                                               \
+      if (driver.something_get () && driver.brace_get ())           \
+        ERROR ("Braces must be on their own lines", 0);             \
+      driver.something_set (true);                                  \
+    }                                                               \
+    driver.yylloc->first_line = driver.yylloc->last_line;	    \
+    driver.yylloc->first_column = driver.yylloc->last_column;	    \
   } while (0)
 
 
-#define COL(Col)				    \
+#define COL(Col)				                    \
   driver.yylloc->last_column += (Col)
 
 
-#define LINE(Line)				                \
-  do{						                \
-    if (/*yylloc->first_column > 81 ||*/ driver.yylloc->last_column > 81)  \
-      ERROR ("Line exceed 80 characters", 0);                   \
-    driver.brace_set (false);                                   \
-    driver.something_set (false);                               \
-    driver.colon_set (false);                                   \
-    driver.yylloc->last_column = 1;		  	                \
-    driver.yylloc->last_line += (Line);		                \
+#define LINE(Line)				                    \
+  do{						                    \
+    if (driver.yylloc->last_column > 81)                            \
+      ERROR ("Line exceed 80 characters", 0);                       \
+    driver.brace_set (false);                                       \
+    driver.something_set (false);                                   \
+    driver.colon_set (false);                                       \
+    driver.sharp_set (false);                                       \
+    driver.yylloc->last_column = 1;		  	            \
+    driver.yylloc->last_line += (Line);		                    \
  } while (0)
 
 
-#define YY_USER_ACTION				    \
-  COL(yyleng);                                      \
-  //std::cout << std::string (yytext) << std::endl;
+#define YY_USER_ACTION				                    \
+  do {                                                              \
+    if (yytext[0] != ' ' && !driver.something_get ()                \
+        && driver.preproc_in_get () && driver.sharp_get ())         \
+    {                                                               \
+      if (std::string (yytext) == std::string ("endif"))            \
+      {\
+        if (driver.yylloc->first_column != driver.preproc_get () + 1)  \
+          ERROR ("Preprocessor directive must be indented", 1);       \
+      }\
+      else if (driver.yylloc->first_column != driver.preproc_get () + 2)\
+      {  \
+        std::cout << driver.preproc_get () << std::endl; \
+        ERROR ("Preprocessor directive must be indented", 1);       \
+      } \
+    }                                                               \
+    COL(yyleng);                                                    \
+  } while (0);
 
 
-#define ERROR(message, tok)                         \
-  do {                                              \
-    if (tok) {                                      \
-      norme_error (message, yytext, driver);\
-    }                                               \
-    else {                                          \
-      norme_error (message, 0, driver);     \
-    }                                               \
+#define ERROR(message, tok)                                         \
+  do {                                                              \
+    if (tok)                                                        \
+      norme_error (message, yytext, driver);                        \
+    else                                                            \
+      norme_error (message, 0, driver);                             \
   } while (0)
 
-#define WARNING(message, tok)                       \
-  do {                                              \
-    if (tok) {                                      \
-      norme_warning (message, yytext, driver);\
-    }                                               \
-    else {                                          \
-      norme_warning (message, 0, driver);     \
-    }                                               \
+
+#define WARNING(message, tok)                                       \
+  do {                                                              \
+    if (tok)                                                        \
+      norme_warning (message, yytext, driver);                      \
+    else                                                            \
+      norme_warning (message, 0, driver);                           \
   } while (0)
 }
 
@@ -83,8 +98,6 @@ void norme_warning (std::string message, char* token, Driver& driver);
 %option outfile="scan.cc"
 /* Specify the output header */
 %option header-file="scan.hh"
-/* Specify that tables shouldn't be reduced */
-/*%option fast*/
 /* Function read used instead of higher-level functions */
 %option read
 /* Memory alignement */
@@ -97,13 +110,12 @@ void norme_warning (std::string message, char* token, Driver& driver);
 /* This function won't appear in code */
 %option nounput
 %option noinput
+%option noyy_top_state
 /* Enable the use of context stacks */
 %option stack
 
-
 %x SC_C_COMMENT SC_CPP_COMMENT SC_STRING SC_LOOP_DEC SC_LOOP_EMPTY SC_CLASS_DEC SC_NAMESPACE
-%x SC_DEFINE SC_TYPEDEF SC_IF_PREPROC SC_VARDEC
-
+%x SC_DEFINE SC_TYPEDEF SC_VARDEC
 
 /**
 
@@ -111,53 +123,52 @@ void norme_warning (std::string message, char* token, Driver& driver);
 
 */
 
-integer         [0-9]+
-char_const      '[^']'
+integer             [0-9]+
+char_const          '[^']'
 
 forbiden_type_name  [suet]_[a-zA-Z_-]+
 
-low_case_id       [a-z]+
-upper_case_id     [A-Z]+
-mix_case_id       [a-zA-Z]+
-macro             ([A-Z][A-Z_]*[A-Z])|([A-Z]+)
+low_case_id         [a-z]+
+upper_case_id       [A-Z]+
+mix_case_id         [a-zA-Z]+
+macro               ([A-Z][A-Z_]*[A-Z])|([A-Z]+)
 
-bad_name          _[a-zA-Z]+
+bad_name            _[a-zA-Z]+
 
-public_attr       ([a-z][a-z_]*[a-z])|{low_case_id}
-private_attr      {public_attr}_
-typedef_suffix    [a-z]+[a-z_]*_type
-def_file          [A-Z][A-Z_]*[A-Z]_[H]+_
+public_attr         ([a-z][a-z_]*[a-z])|{low_case_id}
+private_attr        {public_attr}_
+typedef_suffix      [a-z]+[a-z_]*_type
+def_file            [A-Z][A-Z_]*[A-Z]_[H]+_
+id                  [a-zA-Z_-]+
 
+loop                ("while"|"for")
 
-id                [a-zA-Z_-]+
+CRLF                ("\r\n")+
 
-loop          ("while"|"for")
-
-CRLF          ("\r\n")+
-
-trigraphs     "??"[\\#^\[\]\|{}~]
-digraphs      "<:"|":>"|"<%"|"%>"|"%:"
+trigraphs           "??"[\\#^\[\]\|{}~]
+digraphs            "<:"|":>"|"<%"|"%>"|"%:"
 
 
-int_type       ("long"|"unsigned"|"short")*"int"|"unsigned"
-floating      "float"|"double"|"long double"
-other         "bool"|"char"|"unsigned char"
-std           "std::"[a-zA-Z:<>_-]+
-type          ({int_type}|{floating}|{other}|{std})("*"|"&")?
+int_type            ("long"|"unsigned"|"short")*"int"|"unsigned"
+floating            "float"|"double"|"long double"
+other               "bool"|"char"|"unsigned char"
+std                 "std::"[a-zA-Z:<>_-]+
+type                ({int_type}|{floating}|{other}|{std})("*"|"&")?
 
-keyword_space   "do"|"if"|"typeid"|"sizeof"|"case"|"catch"|"switch"|"template"|"throw"|"try"
+keyword_space       "do"|"if"|"typeid"|"sizeof"|"case"|"catch"|"switch"|"template"|"throw"|"try"
 
-op          "+"|"-"|"*"|"~"|"/"|"%"|"^"|"?"|"&"|"|"|"="|":"
-bin_op      {op}|"+="|"-="|"*="|"/="|"%="|">>="|"<<="|"&="|"^="|"|="|"=="|"!="|">"|"<"|">="|"<="|"&&"|"||"|"<<"|">>"
+op                  "+"|"-"|"*"|"~"|"/"|"%"|"^"|"?"|"&"|"|"|"="|":"
+bin_op              {op}|"+="|"-="|"*="|"/="|"%="|">>="|"<<="|"&="|"^="|"|="|"=="|"!="|">"|"<"|">="|"<="|"&&"|"||"|"<<"|">>"
 
-eol         \n
-trailing_ws " \n"
-blank       [ \t]
+eol                 "\n"
+trailing_ws         " \n"
+blank               [ \t]
 
-preproc_if    ("if"|"ifdef"|"ifndef")
-macro_forbid  "break"|"continue"|"return"|"throw"
+preproc_if          ("if"|"ifdef"|"ifndef")
+macro_forbid        "break"|"continue"|"return"|"throw"
 
-enum_use    [a-zA-Z:]+[A-Z_]+
+enum_use            [a-zA-Z:]+[A-Z_]+
+
 /**
 
   START TOKEN RULES
@@ -165,9 +176,7 @@ enum_use    [a-zA-Z:]+[A-Z_]+
 */
 
 %%
-%{
-  STEP ();
-%}
+
 
 <SC_C_COMMENT>
 {
@@ -430,64 +439,6 @@ enum_use    [a-zA-Z:]+[A-Z_]+
   .
 }
 
-<SC_IF_PREPROC>
-{
-  {trailing_ws}   {
-                    LINE (1);
-                    ERROR ("Trailing whitespace", 0);
-                    driver.preproc_in_set (true);
-                    STEP ();
-                  }
-  {eol}           {
-                    LINE (1);
-                    driver.preproc_in_set (true);
-                    STEP ();
-                  }
-  {blank}+        STEP ();
-  "#"             {
-                    if (driver.yylloc->first_column > 1)
-                      ERROR ("Preprocessor directive mark must appear on the first column", 1);
-                    STEP ();
-                  }
-  {macro_forbid}  {
-                    if (driver.preproc_in_get () && driver.yylloc->first_column != driver.preproc_get () + 2)
-                      ERROR ("Preproc instructions must be indented correctly", 0);
-                    driver.preproc_in_set (false);
-                    STEP ();
-                    ERROR ("You must not break the control flow inside a macro", 1);
-                  }
-  {preproc_if}    {
-                    if (driver.preproc_in_get () && driver.yylloc->first_column != driver.preproc_get () + 2)
-                      ERROR ("Preproc instructions must be indented correctly", 0);
-                    driver.preproc_inc ();
-                    driver.preproc_in_set (false);
-                    STEP ();
-                  }
-  "endif"         {
-                    if (driver.preproc_in_get () && driver.yylloc->first_column != driver.preproc_get () + 1)
-                      ERROR ("Preproc instructions must be indented correctly", 0);
-                    driver.preproc_dec ();
-                    if (!driver.preproc_get ())
-                    {
-                      yy_pop_state ();
-                      driver.preproc_in_set (false);
-                    }
-                    else
-                      driver.preproc_in_set (false);
-                    STEP ();
-                  }
-  {id}            {
-                    if (driver.preproc_in_get () && driver.yylloc->first_column != driver.preproc_get () + 2)
-                      ERROR ("Preproc instructions must be indented correctly", 0);
-                    driver.preproc_in_set (false);
-                    STEP ();
-                  }
-  .               {
-                    if (driver.preproc_in_get () && driver.yylloc->first_column != driver.preproc_get () + 2)
-                      ERROR ("Preproc instructions must be indented correctly", 0);
-                    driver.preproc_in_set (false);
-                  }
-}
 
 <SC_VARDEC>
 {
@@ -522,12 +473,10 @@ enum_use    [a-zA-Z:]+[A-Z_]+
   {trailing_ws}   {
                     LINE (1);
                     ERROR ("Trailing whitespace", 0);
-                    driver.preproc_in_set (true);
                     STEP ();
                   }
   {eol}           {
                     LINE (1);
-                    driver.preproc_in_set (true);
                     STEP ();
                   }
   {blank}         STEP ();
@@ -607,20 +556,25 @@ enum_use    [a-zA-Z:]+[A-Z_]+
               }
 
 
-"#"{preproc_if} {
-                  if (driver.yylloc->first_column > 1)
-                    ERROR ("Preprocessor directive mark must appear on the first column", 1);
-                  driver.preproc_inc ();
-                  driver.preproc_in_set (false);
-                  STEP ();
-                  yy_push_state (SC_IF_PREPROC);
-                }
+{preproc_if}  {
+                driver.preproc_in_set (true);
+                driver.preproc_inc ();
+                STEP ();
+              }
 
+"endif"       {
+                driver.preproc_dec ();
+                if (!driver.preproc_get ())
+                  driver.preproc_in_set (false);
+                STEP ();
+              }
 
 "#"           {
                 if (driver.yylloc->first_column > 1)
                   ERROR ("Preprocessor directive mark must appear on the first column", 1);
-                STEP ();
+                SHADOW_STEP ();
+                driver.something_set (false);
+                driver.sharp_set (true);
               }
 
 "["           STEP ();
@@ -708,7 +662,7 @@ enum_use    [a-zA-Z:]+[A-Z_]+
 
 {trailing_ws} LINE(1); ERROR ("Trailing whitespace", 0); STEP ();
 {eol}         LINE(1); STEP ();
-{blank}       STEP (); /* single whitespace for padding operators */
+{blank}       SHADOW_STEP (); /* single whitespace for padding operators */
 "_"           STEP ();
 
 .             {ERROR ("Unexpected token", 1); STEP ();}
@@ -733,7 +687,7 @@ norme_error (std::string message, char* token, Driver& driver)
     std::cerr << "\033[34m" << *driver.source_get () << "\033[37m : ";
   std::cerr << *driver.yylloc << "  " << "\033[31mError \033[37m" << message;
   if (token)
-    std::cerr << " : " << "\033[4;31m" << std::string (token) << "\033[0;37m";
+    std::cerr << " : " << "\033[31m" << std::string (token) << "\033[37m";
   std::cerr << std::endl;
 }
 
@@ -744,6 +698,6 @@ norme_warning (std::string message, char* token, Driver& driver)
     std::cerr << "\033[34m" << *driver.source_get () << "\033[37m : ";
   std::cerr << *driver.yylloc << "  " << "\033[33mWarning \033[37m" << message;
   if (token)
-    std::cerr << " : " << "\033[4;31m" << std::string (token) << "\033[0;37m";
+    std::cerr << " : " << "\033[31m" << std::string (token) << "\033[37m";
   std::cerr << std::endl;
 }
