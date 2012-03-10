@@ -62,15 +62,17 @@ void norme_warning (std::string message, char* token, Driver& driver);
         && driver.preproc_in_get () && driver.sharp_get ())         \
     {                                                               \
       if (std::string (yytext) == std::string ("endif"))            \
-      {\
-        if (driver.yylloc->first_column != driver.preproc_get () + 1)  \
-          ERROR ("Preprocessor directive must be indented", 1);       \
-      }\
-      else if (driver.yylloc->first_column != driver.preproc_get () + 2)\
-      {  \
-        std::cout << driver.preproc_get () << std::endl; \
+      {                                                             \
+        if (driver.yylloc->first_column                             \
+            != driver.preproc_get () + 1)                           \
+          ERROR ("Preprocessor directive must be indented", 1);     \
+      }                                                             \
+      else if (driver.yylloc->first_column                          \
+          != driver.preproc_get () + 2)                             \
+      {                                                             \
+        std::cout << driver.preproc_get () << std::endl;            \
         ERROR ("Preprocessor directive must be indented", 1);       \
-      } \
+      }                                                             \
     }                                                               \
     COL(yyleng);                                                    \
   } while (0);
@@ -149,9 +151,9 @@ trigraphs           "??"[\\#^\[\]\|{}~]
 digraphs            "<:"|":>"|"<%"|"%>"|"%:"
 
 
-int_type            ("long"|"unsigned"|"short")*"int"|"unsigned"
+int_type            ("long "|"unsigned "|"short ")*"int"|"unsigned"
 floating            "float"|"double"|"long double"
-other               "bool"|"char"|"unsigned char"
+other               "bool"|"char"|"unsigned char"|"void"
 std                 "std::"[a-zA-Z:<>_-]+
 type                ({int_type}|{floating}|{other}|{std})("*"|"&")?
 
@@ -404,14 +406,14 @@ enum_use            [a-zA-Z:]+[A-Z_]+
   {trailing_ws}     {
                       LINE (1);
                       yy_pop_state ();
-                      ERROR ("Invalide typedef name", 0);
+                      ERROR ("Invalide typedef name. Should be prefixed by _type", 0);
                       ERROR ("Trailing whitespace", 0);
                       STEP ();
                     }
   {eol}             {
                       LINE (1);
                       yy_pop_state ();
-                      ERROR ("Invalide typedef name", 0);
+                      ERROR ("Invalide typedef name. Should be prefixed by _type", 0);
                       STEP ();
                     }
   {blank}           STEP ();
@@ -420,7 +422,7 @@ enum_use            [a-zA-Z:]+[A-Z_]+
                       STEP ();
                     }
   "; "              {
-                      ERROR ("Invalide typedef name", 0);
+                      ERROR ("Invalide typedef name. Should be prefixed by _type", 0);
                       ERROR ("Space after semi-colon", 0);
                       yy_pop_state ();
                       STEP ();
@@ -429,7 +431,7 @@ enum_use            [a-zA-Z:]+[A-Z_]+
                       driver.colon_set (true);
                     }
   ";"               {
-                      ERROR ("Invalide typedef name", 0);
+                      ERROR ("Invalide typedef name. Should be prefixed by _type", 0);
                       yy_pop_state ();
                       STEP ();
                       if (driver.colon_get ())
@@ -443,30 +445,40 @@ enum_use            [a-zA-Z:]+[A-Z_]+
 <SC_VARDEC>
 {
   {public_attr}   {
-                    if (driver.state_get () == PRIVATE || driver.state_get () == PROTECTED)
-                      WARNING ("Identifier not conform to private / protected member norme.", 1);
+                    if ((driver.state_get () == PRIVATE
+                        || driver.state_get () == PROTECTED)
+                        && driver.scope_count_get () == 1
+                        && !driver.par_count_get ())
+                      ERROR ("Identifier not conform to private / protected member norme.", 1);
                     STEP ();
                     yy_pop_state ();
                   }
 
   {private_attr}  {
-                    if (driver.state_get () == PUBLIC)
-                      WARNING ("Identifier not conform to public member norme", 1);
+                    if (driver.state_get () == PUBLIC
+                        && driver.scope_count_get () == 1
+                        && !driver.par_count_get ())
+                      ERROR ("Identifier not conform to public member norme", 1);
                     STEP ();
                     yy_pop_state ();
                   }
   ("&"|"*"){public_attr}   {
                     ERROR ("Pointers and references are part of the type", 1);
-                    if (driver.state_get () == PRIVATE || driver.state_get () == PROTECTED)
-                      WARNING ("Identifier not conform to private / protected member norme.", 1);
+                    if ((driver.state_get () == PRIVATE
+                        || driver.state_get () == PROTECTED)
+                        && driver.scope_count_get () == 1
+                        && !driver.par_count_get ())
+                      ERROR ("Identifier not conform to private / protected member norme.", 1);
                     STEP ();
                     yy_pop_state ();
                   }
 
   ("&"|"*"){private_attr}  {
                     ERROR ("Pointers and references are part of the type", 1);
-                    if (driver.state_get () == PUBLIC)
-                      WARNING ("Identifier not conform to public member norme", 1);
+                    if (driver.state_get () == PUBLIC
+                        && driver.scope_count_get () == 1
+                        && !driver.par_count_get ())
+                      ERROR ("Identifier not conform to public member norme", 1);
                     STEP ();
                     yy_pop_state ();
                   }
@@ -645,14 +657,19 @@ enum_use            [a-zA-Z:]+[A-Z_]+
 {mix_case_id}     STEP ();
 
 {public_attr}     {
-                    if (driver.state_get () == PRIVATE || driver.state_get () == PROTECTED)
-                      WARNING ("Identifier not conform to private / protected member norme.", 1);
+                    if ((driver.state_get () == PRIVATE
+                        || driver.state_get () == PROTECTED)
+                        && driver.scope_count_get () == 1
+                        && !driver.par_count_get ())
+                      ERROR ("Identifier not conform to private / protected member norme.", 1);
                     STEP ();
                   }
 
 {private_attr}    {
-                    if (driver.state_get () == PUBLIC)
-                      WARNING ("Identifier not conform to public member norme", 1);
+                    if (driver.state_get () == PUBLIC
+                        && driver.scope_count_get () == 1
+                        && !driver.par_count_get ())
+                      ERROR ("Identifier not conform to public member norme", 1);
                     STEP ();
                   }
 
