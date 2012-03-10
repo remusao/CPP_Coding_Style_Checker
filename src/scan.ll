@@ -13,7 +13,7 @@ void norme_error (std::string message, char* token, Driver& driver);
 void norme_warning (std::string message, char* token, Driver& driver);
 
 /* What the lexer should return when EOF is encountered */
-#define yyterminate() return 0;
+//#define yyterminate() return 0;
 
 /* Location maccros */
 
@@ -431,6 +431,10 @@ enum_use            [a-zA-Z:]+[A-Z_]+
                     STEP ();
                   }
   {blank}         STEP ();
+  {def_file}      {
+                    driver.header_protect_set (true);
+                    STEP ();
+                  }
   {macro}         {
                     yy_pop_state ();
                     STEP ();
@@ -722,6 +726,15 @@ enum_use            [a-zA-Z:]+[A-Z_]+
 {eol}         LINE(1); STEP ();
 {blank}       SHADOW_STEP (); /* single whitespace for padding operators */
 "_"           STEP ();
+
+<<EOF>>       {
+                if (driver.is_header && !driver.header_protect_get ())
+                  ERROR ("A header must be protected against multiple inclusion", 0);
+
+                return 0;
+              }
+
+
 
 .             {ERROR ("Unexpected token", 1); STEP ();}
 

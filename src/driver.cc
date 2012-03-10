@@ -19,7 +19,8 @@ Driver::Driver ()
     sharp_on_line_ (false),
     preproc_depth_ (0),
     brace_on_line_ (false),
-    something_on_line_ (false)
+    something_on_line_ (false),
+    header_protect_ (false)
 {
 }
 
@@ -51,7 +52,7 @@ Driver::reset_ ()
 
   brace_on_line_ = false;
   something_on_line_ = false;
-
+  header_protect_ = false;
 }
 
 
@@ -67,6 +68,14 @@ Driver::print_header_ (std::string& s)
     << std::endl;
 }
 
+bool
+Driver::is_header_ (std::string& file)
+{
+  if (file.find (".h") != std::string::npos)
+    return true;
+  return false;
+}
+
 
 int
 Driver::parse_file (std::string& file)
@@ -74,6 +83,8 @@ Driver::parse_file (std::string& file)
   source_ = &file;
   print_header_ (*source_);
   yyin = fopen(file.c_str (), "r");
+
+  is_header = is_header_ (file);
 
   while (yylex (*this))
     ;

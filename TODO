@@ -1,8 +1,6 @@
 
 - Supports every errors
 
-- Check that there is only one class def per file
-- header protection against multiple inclusion
 - using name space (check if we are in a header)
 - check indentation (closing brace on the same column than opening one)
 - binary operator padding
@@ -10,3 +8,4 @@
 - operator() and [] must not be padded
 - Spanned line must be cut befor binary op.
 - Nb lines by function
+- Check that class are only declared in header files.

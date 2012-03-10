@@ -31,3 +31,5 @@ Detected Errors :
   - Must not begin an id with [suet]_
   - You must not declare two things on the same line
   - Check class name with file name
+  - Check that there is only one class per file
+  - Check that header are protected against multiple inclusion

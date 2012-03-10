@@ -90,14 +90,19 @@ class Driver
     bool sharp_get () { return sharp_on_line_; }
     void sharp_set (bool s) { sharp_on_line_ = s; }
 
+    bool header_protect_get () { return header_protect_; }
+    void header_protect_set (bool s) { header_protect_ = s; }
+
   public:
 
     YYLTYPE*    yylloc;
+    bool        is_header;
 
   private:
 
     void reset_ ();
     void print_header_ (std::string& header);
+    bool is_header_ (std::string& file);
 
     std::string*  source_;
     unsigned      par_count_;
@@ -116,6 +121,7 @@ class Driver
 
     bool brace_on_line_;
     bool something_on_line_;
+    bool header_protect_;
 };
 
 
