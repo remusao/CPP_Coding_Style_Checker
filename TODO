@@ -1,11 +1,7 @@
 
 - Supports every errors
 
-- using name space (check if we are in a header)
 - check indentation (closing brace on the same column than opening one)
 - binary operator padding
 - Check big comment (no dead code)
-- operator() and [] must not be padded
-- Spanned line must be cut befor binary op.
 - Nb lines by function
-- Check that class are only declared in header files.

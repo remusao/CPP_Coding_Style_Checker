@@ -254,7 +254,7 @@ enum_use            [a-zA-Z:]+[A-Z_]+
                         }
   ";"[^ ;\n]            {
                           ERROR ("Missing white space after ';' in loop", 0);
-                          STEP ();
+                          SHADOW_STEP ();
                           if (driver.colon_get ())
                             ERROR ("You can't have more than one statement per line", 0);
                           driver.colon_set (true);
@@ -297,7 +297,7 @@ enum_use            [a-zA-Z:]+[A-Z_]+
                 }
   ";"           {
                   ERROR ("After empty loop, semi colon must be on its own line", 0);
-                  STEP ();
+                  SHADOW_STEP ();
                 }
   {blank}       STEP ();
   "{"           {
@@ -313,6 +313,10 @@ enum_use            [a-zA-Z:]+[A-Z_]+
   "{"                 {
                         ERROR ("Braces must be on their own lines", 0);
                         STEP ();
+                      }
+  {id}";"             {
+                        driver.class_set (false);
+                        yy_pop_state ();
                       }
   [A-Z]+{mix_case_id} {
                         std::string file (*driver.source_get ());
@@ -331,7 +335,7 @@ enum_use            [a-zA-Z:]+[A-Z_]+
                         else if (file[i] == '/')
                           i++;
                         bool maj = true;
-                        for (int j = i; j < file.size () && file[j] != '.'; j++)
+                        for (unsigned j = i; j < file.size () && file[j] != '.'; j++)
                         {
                           if (maj)
                           {
@@ -353,11 +357,14 @@ enum_use            [a-zA-Z:]+[A-Z_]+
                             ERROR ("Class name does not correspond to file name : " + class_name, 1);
                             break;
                           }
-                        } 
+                        }
+
+                        yy_pop_state ();
                         STEP ();
                       }
   {id}                {
                         ERROR ("Bad class identifier. Must be 'LikeThis', not likethis", 1);
+                        yy_pop_state ();
                         STEP ();
                       }
   {trailing_ws}       {
@@ -386,14 +393,14 @@ enum_use            [a-zA-Z:]+[A-Z_]+
   "; "          {
                   ERROR ("Whitespace after semi-colon", 0);
                   yy_pop_state ();
-                  STEP ();
+                  SHADOW_STEP ();
                   if (driver.colon_get ())
                     ERROR ("You can't have more than one statement per line", 0);
                   driver.colon_set (true);
                 }
   ";"           {
                   yy_pop_state ();
-                  STEP ();
+                  SHADOW_STEP ();
                   if (driver.colon_get ())
                     ERROR ("You can't have more than one statement per line", 0);
                   driver.colon_set (true);
@@ -470,7 +477,7 @@ enum_use            [a-zA-Z:]+[A-Z_]+
                       ERROR ("Invalide typedef name. Should be prefixed by _type", 0);
                       ERROR ("Space after semi-colon", 0);
                       yy_pop_state ();
-                      STEP ();
+                      SHADOW_STEP ();
                       if (driver.colon_get ())
                         ERROR ("You can't have more than one statement per line", 0);
                       driver.colon_set (true);
@@ -478,7 +485,7 @@ enum_use            [a-zA-Z:]+[A-Z_]+
   ";"               {
                       ERROR ("Invalide typedef name. Should be prefixed by _type", 0);
                       yy_pop_state ();
-                      STEP ();
+                      SHADOW_STEP ();
                       if (driver.colon_get ())
                         ERROR ("You can't have more than one statement per line", 0);
                       driver.colon_set (true);
@@ -552,13 +559,33 @@ enum_use            [a-zA-Z:]+[A-Z_]+
   .               yy_pop_state ();
 }
 
+"operator()"    STEP ();
+{loop}"("       {
+                  ERROR ("Whitespace missing after loop KeyWord", 1);
+                  STEP ();
+                  yy_push_state (SC_LOOP_DEC);
+                }
+{id}"("         {
+                  ERROR ("A whitespace is needed before parenthesis", 1);
+                  STEP ();
+                  driver.par_count_inc ();
+                }
+
+"("{type}")"    {
+                  ERROR ("Casts are forbiden", 1);
+                  STEP ();
+                }
+
 
 "class"     {
               STEP ();
-              yy_push_state (SC_CLASS_DEC);
               if (driver.class_get ())
                 ERROR ("You can't declare more than one class per file", 1);
               driver.class_set (true);
+              if (!driver.is_header)
+                ERROR ("You can't declare class in non-header files", 0);
+
+              yy_push_state (SC_CLASS_DEC);
             }
 
 "try"|"do"    SHADOW_STEP ();
@@ -569,7 +596,6 @@ enum_use            [a-zA-Z:]+[A-Z_]+
 
 "\""          STEP (); yy_push_state (SC_STRING);
 
-{loop}"("             ERROR ("Whitespace missing after loop KeyWord", 1); STEP (); yy_push_state (SC_LOOP_DEC);
 {keyword_space}[^ \n\t]   ERROR ("Whitespace is missige after Keyword", 1); STEP ();
 
 {trigraphs}           ERROR ("Trigraphs are forbiden", 1); STEP ();
@@ -609,7 +635,7 @@ enum_use            [a-zA-Z:]+[A-Z_]+
                 if (driver.colon_get ())
                   ERROR ("You can't have more than one statement per line", 0);
                 driver.colon_set (true);
-                STEP ();
+                SHADOW_STEP ();
               }
 
 
@@ -688,7 +714,11 @@ enum_use            [a-zA-Z:]+[A-Z_]+
 
 "typedef"       STEP (); yy_push_state (SC_TYPEDEF);
 
-"using"         ERROR ("using namespace is forbiden", 0); STEP ();
+"using"         {
+                  if (driver.is_header)
+                    ERROR ("using namespace is forbiden", 0);
+                  STEP ();
+                }
 
 "namespace"     {
                   STEP ();
@@ -729,7 +759,7 @@ enum_use            [a-zA-Z:]+[A-Z_]+
 
 <<EOF>>       {
                 if (driver.is_header && !driver.header_protect_get ())
-                  ERROR ("A header must be protected against multiple inclusion", 0);
+                  ERROR ("A header must be protected against multiple inclusion, like this : FILE_HH_", 0);
 
                 return 0;
               }
