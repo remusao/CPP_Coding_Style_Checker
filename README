@@ -1,0 +1,32 @@
+Detected Errors :
+  - name begining with underscores
+  - Class names LikeThis
+  - Public membres like_this
+  - Private and Protected membres like_this_
+  - Namespaces likethis
+  - Preproc macros entirely capitilized
+  - Typedef types suffixed with _type
+  - Line of 80 and more characters
+  - CR+LF end of lines
+  - Preprocessor directive mark (#) on the first line
+  - #if #ifdef #ifndef indentation
+  - Trigraphs and digraphs
+  - Code inside macro must not break control flow
+  - No using namespaces in headers
+  - All braces must be on their own lines
+  - Comments (C and C++) don't throw an error if on the same line as braces
+  - Try and do keywords neither.
+  - References and pointers are part of the type (not the var name)
+  - Only one declaration per line
+  - One statement per line
+  - Commas must not be used to separate statements
+  - Commas must be followed by a space
+  - Semi-colon must be followed by a eol (and not be preceded by space)
+  - Keywords with argument(s) must be followed by a space
+  - goto statement must not be used
+  - asm statement must not be used
+  - Single line loops must have their semi-colon on the following line
+  - Trailing whitespaces
+  - Order class member by visibility
+  - Must not begin an id with [suet]_
+  - You must not declare two things on the same line
