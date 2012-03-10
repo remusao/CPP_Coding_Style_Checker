@@ -30,3 +30,4 @@ Detected Errors :
   - Order class member by visibility
   - Must not begin an id with [suet]_
   - You must not declare two things on the same line
+  - Check class name with file name

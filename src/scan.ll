@@ -314,7 +314,48 @@ enum_use            [a-zA-Z:]+[A-Z_]+
                         ERROR ("Braces must be on their own lines", 0);
                         STEP ();
                       }
-  [A-Z]+{mix_case_id} STEP ();
+  [A-Z]+{mix_case_id} {
+                        std::string file (*driver.source_get ());
+                        std::string class_name (yytext);
+                        for (unsigned i = 0; i < file.size (); i++)
+                        {
+                          if (file[i] >= 'A' && file[i] <= 'Z')
+                            file[i] = file[i] - 'A' + 'a';
+                        }
+                        int i = file.size () - 1;
+                        for (; i >= 0; i--)
+                          if (file[i] == '/')
+                            break;
+                        if (i < 0)
+                          i = 0;
+                        else if (file[i] == '/')
+                          i++;
+                        bool maj = true;
+                        for (int j = i; j < file.size () && file[j] != '.'; j++)
+                        {
+                          if (maj)
+                          {
+                            maj = false;
+                            if ((file[j] - 'a' + 'A') != class_name[j - i])
+                            {
+                              ERROR ("Class name does not correspond to file name : " + class_name, 1);
+                              break;
+                            }
+                          }
+                          else if (file[j] == '_')
+                          {
+                            maj= true;
+                            i++;
+                            continue;
+                          }
+                          else if (file[j] != class_name[j - i])
+                          {
+                            ERROR ("Class name does not correspond to file name : " + class_name, 1);
+                            break;
+                          }
+                        } 
+                        STEP ();
+                      }
   {id}                {
                         ERROR ("Bad class identifier. Must be 'LikeThis', not likethis", 1);
                         STEP ();
