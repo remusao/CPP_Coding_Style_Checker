@@ -133,14 +133,14 @@ forbiden_type_name  [suet]_[a-zA-Z_-]+
 low_case_id         [a-z]+
 upper_case_id       [A-Z]+
 mix_case_id         [a-zA-Z]+
-macro               ([A-Z][A-Z_]*[A-Z])|([A-Z]+)
+macro               ([A-Z][A-Z0-9_]*[A-Z0-9])|([A-Z0-9]+)
 
 bad_name            _[a-zA-Z]+
 
 public_attr         ([a-z][a-z_]*[a-z])|{low_case_id}
 private_attr        {public_attr}_
 typedef_suffix      [a-z]+[a-z_]*_type
-def_file            [A-Z][A-Z_]*[A-Z]_[H]+_
+def_file            [A-Z][A-Z0-9_]*[A-Z0-9]+_[H]+_
 id                  [a-zA-Z_-]+
 
 loop                ("while"|"for")
@@ -264,10 +264,6 @@ enum_use            [a-zA-Z:]+[A-Z_]+
                           STEP ();
                           yy_push_state (SC_VARDEC);
                         }
-  [^ +-]{bin_op}[^ -+>] {
-                          ERROR ("Binary op is not padded", 1);
-                          STEP ();
-                        }
   {blank}               STEP ();
   .                     {}
 }
@@ -340,7 +336,12 @@ enum_use            [a-zA-Z:]+[A-Z_]+
                           if (maj)
                           {
                             maj = false;
-                            if ((file[j] - 'a' + 'A') != class_name[j - i])
+                            if (file[j] >= '0' && file[j] <= '9' && class_name[j - i] != file[j])
+                            {
+                              ERROR ("Class name does not correspond to file name : " + class_name, 1);
+                              break;
+                            }
+                            else if ((file[j] - 'a' + 'A') != class_name[j - i])
                             {
                               ERROR ("Class name does not correspond to file name : " + class_name, 1);
                               break;
@@ -590,11 +591,20 @@ enum_use            [a-zA-Z:]+[A-Z_]+
 
 "try"|"do"    SHADOW_STEP ();
 
-"//"          SHADOW_STEP (); yy_push_state (SC_CPP_COMMENT);
+"//"          {
+                SHADOW_STEP ();
+                yy_push_state (SC_CPP_COMMENT);
+              }
 
-"/*"          SHADOW_STEP (); yy_push_state (SC_C_COMMENT);
+"/*"          {
+                SHADOW_STEP ();
+                yy_push_state (SC_C_COMMENT);
+              }
 
-"\""          STEP (); yy_push_state (SC_STRING);
+"\""          {
+                STEP ();
+                yy_push_state (SC_STRING);
+              }
 
 {keyword_space}[^ \n\t]   ERROR ("Whitespace is missige after Keyword", 1); STEP ();
 
@@ -686,7 +696,10 @@ enum_use            [a-zA-Z:]+[A-Z_]+
 
 "include"     STEP ();
 
-"define"      STEP (); yy_push_state (SC_DEFINE);
+"define"      {
+                STEP ();
+                yy_push_state (SC_DEFINE);
+              }
 
 "public:"     {
                 if (driver.protected_get ())
@@ -766,7 +779,10 @@ enum_use            [a-zA-Z:]+[A-Z_]+
 
 
 
-.             {ERROR ("Unexpected token", 1); STEP ();}
+.             {
+                ERROR ("Unexpected token", 1);
+                STEP ();
+              }
 
 %%
 

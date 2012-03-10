@@ -5,3 +5,5 @@
 - binary operator padding
 - Check big comment (no dead code)
 - Nb lines by function
+
+- Fix bug with header files comporting digits
